@@ -108,6 +108,25 @@ static void gr_copy_escape_part (char *dst, const char *src, size_t dst_len,
     }
 }
 
+static int gr_format_name_asis (char *ret, int ret_len,
+                                value_list_t const *vl,
+                                char const *ds_name,
+                                char const *prefix)
+{
+
+  if (prefix == NULL)
+    prefix = "";
+
+  if (ds_name != NULL)
+    ssnprintf (ret, ret_len, "%s%s.%s",
+               prefix, vl->type_instance, ds_name);
+  else
+    ssnprintf (ret, ret_len, "%s%s",
+               prefix, vl->type_instance);
+
+  return (0);
+}
+
 static int gr_format_name (char *ret, int ret_len,
         value_list_t const *vl,
         char const *ds_name,
@@ -208,8 +227,12 @@ int format_graphite (char *buffer, size_t buffer_size,
           ds_name = ds->ds[i].name;
 
         /* Copy the identifier to `key' and escape it. */
-        status = gr_format_name (key, sizeof (key), vl, ds_name,
-                    prefix, postfix, escape_char, flags);
+
+        if ((flags & GRAPHITE_FORMAT_ASIS))
+          status = gr_format_name_asis (key, sizeof (key), vl, ds_name, prefix);
+        else
+          status = gr_format_name (key, sizeof (key), vl, ds_name,
+                                   prefix, postfix, escape_char, flags);
         if (status != 0)
         {
             ERROR ("format_graphite: error with gr_format_name");
@@ -217,7 +240,8 @@ int format_graphite (char *buffer, size_t buffer_size,
             return (status);
         }
 
-        escape_graphite_string (key, escape_char);
+        if (!(flags & GRAPHITE_FORMAT_ASIS))
+          escape_graphite_string (key, escape_char);
         /* Convert the values to an ASCII representation and put that into
          * `values'. */
         status = gr_format_values (values, sizeof (values), i, ds, vl, rates);

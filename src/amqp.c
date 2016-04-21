@@ -1020,6 +1020,9 @@ static int camqp_config_connection (oconfig_item_t *ci, /* {{{ */
         }
         else if ((strcasecmp ("Format", child->key) == 0) && publish)
             status = camqp_config_set_format (child, conf);
+        else if ((strcasecmp ("GraphiteFormatASIS", child->key) == 0) && publish)
+            status = cf_util_get_flag (child, &conf->graphite_flags,
+                    GRAPHITE_FORMAT_ASIS);
         else if ((strcasecmp ("GraphiteSeparateInstances", child->key) == 0) && publish)
             status = cf_util_get_flag (child, &conf->graphite_flags,
                     GRAPHITE_SEPARATE_INSTANCES);
