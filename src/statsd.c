@@ -742,18 +742,23 @@ static void *statsd_network_thread (void *args) /* {{{ */
 
     status = poll (fds.fds, (nfds_t) fds.fds_num, /* timeout = */ -1);
 
-    DEBUG("statsd plugin: ohh some moving in socket");
-
     if (status < 0) {
       char errbuf[1024] = {0};
 
-      if ((errno == EINTR) || (errno == EAGAIN))
+      if (EAGAIN == errno)
         continue;
+
+      if (EINTR == errno) {
+        DEBUG("statsd plugin: poll(2) has been interrupted");
+        break;
+      }
 
       ERROR ("statsd plugin: poll(2) failed: %s",
              sstrerror (errno, errbuf, sizeof (errbuf)));
       break;
     }
+
+    DEBUG("statsd plugin: ohh some moving in the sockets");
 
     for (i = 0; i < fds.fds_num; i++) {
       if ((fds.fds[i].revents & (POLLIN | POLLPRI)) == 0)
@@ -980,6 +985,7 @@ static int statsd_metric_submit_unsafe (statsd_config_t *conf, char const *name,
   vl.values_len = 1;
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "statsd", sizeof (vl.plugin));
+  sstrncpy (vl.plugin_instance, conf->node_name, sizeof (vl.plugin_instance));
 
   global_prefix = (NULL == conf->global_prefix) ? "" : conf->global_prefix;
   global_postfix = (NULL == conf->global_postfix) ? "" : conf->global_postfix;
@@ -1112,7 +1118,7 @@ static int statsd_read (void) /* {{{ */
   size_t i;
   int thread_num = 0;
 
-  DEBUG("statsd plugin: read: threads %d", statsd_threads_num);
+  DEBUG("statsd plugin: read: threads %zu", statsd_threads_num);
 
   for (thread_num = 0; thread_num < statsd_threads_num; thread_num++) {
     statsd_config_t *conf = statsd_threads[thread_num].conf;
